@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>先生が生徒を当てるアプリ</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        main {
+            margin: 20px auto;
+            max-width: 800px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .big-button {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9f7e9;
+            border: 1px solid #c3e6c3;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #155724;
+        }
+
+        .list {
+            margin-top: 20px;
+        }
+
+        .list h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #007bff;
+        }
+
+        .list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .list li {
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+        .form-section {
+            margin-top: 20px;
+        }
+
+        .form-section div {
+            margin-bottom: 10px;
+        }
+
+        .flex-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .flex-item {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        先生が生徒を当てるアプリ
+    </header>
+    <main>
+        <label for="student-count">生徒の人数を入力:</label>
+        <input type="number" id="student-count" min="1" placeholder="例: 10">
+        <button onclick="setStudentCount()">設定</button>
+
+        <div id="name-input-section" class="form-section">
+            <h3>生徒の名前を入力してください</h3>
+            <div>
+                <label for="class-name">クラス名:</label>
+                <input type="text" id="class-name" placeholder="クラス名を入力">
+            </div>
+            <div id="name-inputs"></div>
+            <button onclick="saveStudentNames()">保存</button>
+        </div>
+
+        <div class="form-section">
+            <label for="class-list">クラスを選択:</label>
+            <select id="class-list"></select>
+            <button onclick="loadClassData()">読み込み</button>
+        </div>
+
+        <div id="picker-section" style="display: none;">
+            <button class="big-button" onclick="pickStudent()">生徒を当てる</button>
+            <div class="result" id="picked-student"></div>
+
+            <div class="flex-container">
+                <div class="flex-item">
+                    <div class="list">
+                        <h3>生徒名簿</h3>
+                        <ul id="student-list"></ul>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <div class="list">
+                        <h3>当たった履歴</h3>
+                        <ul id="picked-history"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let studentNames = [];
+        let remainingStudents = [];
+        let pickedHistory = [];
+
+        function setStudentCount() {
+            const count = parseInt(document.getElementById('student-count').value);
+            if (isNaN(count) || count <= 0) {
+                alert('正しい人数を入力してください');
+                return;
+            }
+
+            const nameInputsContainer = document.getElementById('name-inputs');
+            nameInputsContainer.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `生徒 ${i + 1} の名前`;
+                input.id = `student-${i}`;
+                nameInputsContainer.appendChild(input);
+            }
+
+            document.getElementById('name-input-section').style.display = 'block';
+        }
+
+        function saveStudentNames() {
+            const className = document.getElementById('class-name').value.trim();
+            if (!className) {
+                alert('クラス名を入力してください');
+                return;
+            }
+
+            const count = parseInt(document.getElementById('student-count').value);
+            studentNames = [];
+
+            for (let i = 0; i < count; i++) {
+                const name = document.getElementById(`student-${i}`).value.trim();
+                if (name === '') {
+                    alert('全ての名前を入力してください');
+                    return;
+                }
+                studentNames.push(name);
+            }
+
+            remainingStudents = [...studentNames];
+            updateStudentList();
+
+            const data = {
+                students: studentNames,
+                history: pickedHistory
+            };
+            localStorage.setItem(className, JSON.stringify(data));
+            updateClassList();
+
+            document.getElementById('picker-section').style.display = 'block';
+            alert(`クラス「${className}」のデータを保存しました。`);
+        }
+
+        function pickStudent() {
+            if (remainingStudents.length === 0) {
+                remainingStudents = [...studentNames];
+                pickedHistory = [];
+                updatePickedHistory();
+                alert('全員に当たりました。履歴をリセットして再度当て始めます。');
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * remainingStudents.length);
+            const picked = remainingStudents.splice(randomIndex, 1)[0];
+
+            const timestamp = new Date().toLocaleString();
+            pickedHistory.push({ name: picked, time: timestamp });
+            updatePickedHistory();
+
+            document.getElementById('picked-student').textContent = `当たった生徒: ${picked}`;
+        }
+
+        function updateStudentList() {
+            const studentList = document.getElementById('student-list');
+            studentList.innerHTML = '';
+            studentNames.forEach(name => {
+                const li = document.createElement('li');
+                li.textContent = name;
+                studentList.appendChild(li);
+            });
+        }
+
+        function updatePickedHistory() {
+            const historyList = document.getElementById('picked-history');
+            historyList.innerHTML = '';
+            pickedHistory.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${index + 1}. ${entry.name} (${entry.time})`;
+                historyList.appendChild(li);
+            });
+        }
+
+        function loadClassData() {
+            const classList = document.getElementById('class-list');
+            const className = classList.value;
+            if (!className) {
+                alert('クラスを選択してください');
+                return;
+            }
+            const data = localStorage.getItem(className);
+            if (data) {
+                const parsedData = JSON.parse(data);
+                studentNames = parsedData.students || [];
+                pickedHistory = [];
+                remainingStudents = [...studentNames];
+
+                updateStudentList();
+                updatePickedHistory();
+
+                document.getElementById('picker-section').style.display = 'block';
+                alert(`クラス「${className}」のデータを読み込みました。`);
+            } else {
+                alert('指定したクラスのデータが見つかりません');
+            }
+        }
+
+        function updateClassList() {
+            const classList = document.getElementById('class-list');
+            classList.innerHTML = '';
+            for (let i = 0; i < localStorage.length; i++) {
+                const className = localStorage.key(i);
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classList.appendChild(option);
+            }
+        }
+
+        // 初期化
+        updateClassList();
+    </script>
+</body>
+</html>
